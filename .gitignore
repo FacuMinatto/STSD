@@ -1,0 +1,27 @@
+# Compilación CMake y Qt
+build/
+bin/
+*.user
+*.user.*
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.qmake.stash
+
+# Binarios y objetos
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+ConfiguradorTransporte
+
+# IDEs y editores
+.vscode/
+.idea/
+*.swp
+*~
+
+# Arduino y PlatformIO
+.pio/
