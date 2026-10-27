@@ -16,16 +16,14 @@ class MainWindow : public QMainWindow {
 
 public:
     MainWindow(QWidget *parent = nullptr);
-~MainWindow();
+    ~MainWindow();
+
 private slots:
-    void cambiarTema();
     void enviarDatos();
 
 private:
     void configurarUI();
     void aplicarEstilos();
-
-    bool modoOscuro;
 
     QComboBox *comboRotacion;
     QComboBox *comboAceleracion;
@@ -35,7 +33,6 @@ private:
     QDoubleSpinBox *spinMargen;
     
     QPushButton *btnEnviar;
-    QPushButton *btnTema;
     QSerialPort *puertoSerie;
 };
 

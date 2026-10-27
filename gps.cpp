@@ -1,17 +1,13 @@
 #include "gps.h"
 
-// En el Arduino UNO, conectaremos el GPS a estos pines:
+// En el Arduino UNO, conectamos el GPS a estos pines:
 // TX del módulo GPS -> Pin 2 del Arduino (RX)
 // RX del módulo GPS -> Pin 3 del Arduino (TX)
-static const int RXPin = 2;
-static const int TXPin = 3;
-static const uint32_t GPSBaud = 9600; // Velocidad estándar para módulos como el NEO-6M
-
 TinyGPSPlus gps;
-SoftwareSerial ss(RXPin, TXPin);
+SoftwareSerial ss(GPS_RX_PIN, GPS_TX_PIN);
 
 void setupGPS() {
-  ss.begin(GPSBaud);
+  ss.begin(GPS_BAUD);
 }
 
 void procesarGPS() {

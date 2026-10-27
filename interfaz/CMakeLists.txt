@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.5)
-project(ConfiguradorTransporte LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.10)
+project(ConfiguradorTransporte VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -7,9 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 
-
-
-find_package(Qt5 COMPONENTS Widgets SerialPort REQUIRED)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets SerialPort)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets SerialPort)
 
 add_executable(ConfiguradorTransporte
     main.cpp
@@ -17,4 +16,5 @@ add_executable(ConfiguradorTransporte
     mainwindow.h
 )
 
-target_link_libraries(ConfiguradorTransporte PRIVATE Qt5::Widgets Qt5::SerialPort)
+target_link_libraries(ConfiguradorTransporte PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::SerialPort)
+
