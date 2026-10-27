@@ -7,8 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets SerialPort)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets SerialPort)
+find_package(Qt6 COMPONENTS Widgets SerialPort REQUIRED)
 
 add_executable(ConfiguradorTransporte
     main.cpp
@@ -16,5 +15,5 @@ add_executable(ConfiguradorTransporte
     mainwindow.h
 )
 
-target_link_libraries(ConfiguradorTransporte PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::SerialPort)
+target_link_libraries(ConfiguradorTransporte PRIVATE Qt6::Widgets Qt6::SerialPort)
 
