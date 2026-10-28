@@ -1,4 +1,4 @@
-> **Última actualización:** 27/10/2026 - 22:45 hs
+> **Última actualización:** 27/10/2026 - 22:58 hs
 
 # Documentación Técnica del Proyecto STSD
 
@@ -462,9 +462,9 @@ Todos los pines asignados en la **ESP32-S3-DevKitC-1** se encuentran en la **hil
 | **DHT11** | `VCC` / `GND` | `3V3` / `GND` | Alimentación | Resistencia pull-up de 4.7kΩ recomendada en DATA |
 | **DHT11** | `DATA` | **Pin `4`** | Digital 1-Wire | Lectura de temperatura y humedad |
 | **RTC DS3231** | `SDA` / `SCL` | **Pines `8` y `9`** | I2C (`Wire`) | Bus I2C compartido con MPU-6050 |
-| **Buzzer Activo** | `+` (Positivo) | **Pin `5`** | Salida Digital | Alarma sonora (Continuo si hay Rojo, 300 ms si hay Amarillo) |
-| **LED RGB 1 (Temp)** | Ánodo Rojo / Verde | **Pines `6` y `7`** | Salida Digital | Pin 6 = Rojo, Pin 7 = Verde (Cátodo a GND con resistor) |
-| **LED RGB 2 (IMU)** | Ánodo Rojo / Verde | **Pines `10` y `11`** | Salida Digital | Pin 10 = Rojo, Pin 11 = Verde (Cátodo a GND con resistor) |
-| **LED RGB 3 (Humedad)** | Ánodo Rojo / Verde | **Pines `12` y `13`** | Salida Digital | Pin 12 = Rojo, Pin 13 = Verde (Cátodo a GND con resistor) |
+| **Buzzer Activo** | `+` (Positivo) | **Pin `5`** | Salida Digital | Continuo si hay algún Rojo; intermitente (300 ms) si hay Amarillo |
+| **LED RGB 1 (Temp)** | Ánodos Rojo / Verde | **Pines `6` y `7`** | Salida PWM (`analogWrite`) | Pin 6=R, Pin 7=G (Verde: R=0, G=255 \| Amarillo: R=255, G=35 \| Rojo: R=255, G=0) |
+| **LED RGB 2 (IMU)** | Ánodos Rojo / Verde | **Pines `10` y `11`** | Salida PWM (`analogWrite`) | Pin 10=R, Pin 11=G (Verde: R=0, G=255 \| Amarillo: R=255, G=35 \| Rojo: R=255, G=0) |
+| **LED RGB 3 (Humedad)** | Ánodos Rojo / Verde | **Pines `12` y `13`** | Salida PWM (`analogWrite`) | Pin 12=R, Pin 13=G (Verde: R=0, G=255 \| Amarillo: R=255, G=35 \| Rojo: R=255, G=0) |
 | **PC (Qt6)** | USB-C UART | Puerto `UART` | Serial UART (115200 bps) | Detectado en Linux como `/dev/ttyUSB0` o `/dev/ttyACM0` |
 
