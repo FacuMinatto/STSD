@@ -27,9 +27,9 @@ STSD/
 En la parte superior se definen mediante directivas del preprocesador (`#define`) los pines de los actuadores y las variables globales que almacenan la configuración vigente:
 
 ```cpp
-#define BUZZER_PIN 6
-#define VERDE 9
-#define ROJO 10
+#define BUZZER_PIN 5
+#define ROJO 6
+#define VERDE 7
 
 int confRotacion = 0;
 int confAceleracion = 0;
@@ -143,8 +143,8 @@ Todos los archivos `.h` utilizan **guardas de inclusión** (`#ifndef ... #define
   Utiliza `sprintf` con el especificador `%02d` para asegurar que los números de un dígito se rellenen con un cero a la izquierda (por ejemplo, `05` en vez de `5`).
 
 ### D. Módulo GPS (`gps.h` y `gps.cpp`)
-* Crea un puerto serie por software (`SoftwareSerial ss(GPS_RX_PIN, GPS_TX_PIN)`) en los pines 2 y 3 a 9600 baudios para dejar libre el puerto serie principal (`Serial`) que se comunica con la PC.
-* A medida que llegan caracteres desde el GPS, `gps.encode(ss.read())` decodifica las tramas NMEA y actualiza la latitud y longitud.
+* Utiliza el segundo puerto serie por hardware del ESP32 (`Serial2`) en los pines **GPIO 16 (`GPS_RX_PIN`)** y **GPIO 17 (`GPS_TX_PIN`)** a 9600 baudios (`Serial2.begin(GPS_BAUD, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN)`), dejando libre el puerto serie principal (`Serial`) que se comunica con la PC.
+* A medida que llegan caracteres desde el GPS, `gps.encode(Serial2.read())` decodifica las tramas NMEA y actualiza la latitud y longitud.
 
 ---
 ---

@@ -1,19 +1,18 @@
 #include "gps.h"
 
-// En el Arduino UNO, conectamos el GPS a estos pines:
-// TX del módulo GPS -> Pin 2 del Arduino (RX)
-// RX del módulo GPS -> Pin 3 del Arduino (TX)
+// En el ESP32 usamos el puerto serie por hardware Serial2 (UART2):
+// TX del módulo GPS -> Pin GPIO 16 del ESP32 (RX2)
+// RX del módulo GPS -> Pin GPIO 17 del ESP32 (TX2)
 TinyGPSPlus gps;
-SoftwareSerial ss(GPS_RX_PIN, GPS_TX_PIN);
 
 void setupGPS() {
-  ss.begin(GPS_BAUD);
+  Serial2.begin(GPS_BAUD, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
 }
 
 void procesarGPS() {
   // Esta función debe llamarse constantemente para no perder datos NMEA
-  while (ss.available() > 0) {
-    gps.encode(ss.read());
+  while (Serial2.available() > 0) {
+    gps.encode(Serial2.read());
   }
 }
 

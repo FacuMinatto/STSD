@@ -3,11 +3,10 @@
 
 #include <Arduino.h>
 #include <TinyGPSPlus.h>
-#include <SoftwareSerial.h>
 
-// Definición de pines y velocidad del GPS
-#define GPS_RX_PIN 2
-#define GPS_TX_PIN 3
+// Definición de pines UART2 en ESP32 y velocidad del GPS GY-NEO6MV2
+#define GPS_RX_PIN 16
+#define GPS_TX_PIN 17
 #define GPS_BAUD   9600
 
 void setupGPS();

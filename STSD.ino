@@ -6,16 +6,10 @@
 #include "rtc.h"
 #include "gps.h"
 
-// Definición de pines para actuadores (DESCOMENTAR CUANDO SEA EL ESP)
-
-//#define BUZZER_PIN 25
-//#define ROJO 26
-//#define VERDE 27
-
-
-#define BUZZER_PIN 6
-#define VERDE 9
-#define ROJO 10
+// Definición de pines para actuadores en ESP32-S3-DevKitC-1
+#define BUZZER_PIN 5
+#define ROJO 6
+#define VERDE 7
 
 // Variables globales de configuración (inician con valores por defecto)
 int confRotacion = 0;
@@ -40,8 +34,8 @@ void setup() {
 
   // Inicializar módulos
   setupDHT();
-  setupIMU();
   setupRTC();
+  setupIMU();
   setupGPS();
   // setupWiFi(); // Para la página web
   
@@ -94,13 +88,15 @@ void loop() {
       Serial.println("Buscando señal GPS...");
     }
 
-    // 2. Sistema de Alarma
-    if (temperatura > confTempMax || temperatura < confTempMin) {
-      activarAlarma();
-    } else if (temperatura > (confTempMax - confMargen) || temperatura < (confTempMin + confMargen)) {
-      alertaNaranja();    
-    } else {
-      desactivarAlarma();
+    // 2. Sistema de Alarma (solo evalúa si el sensor DHT11 devolvió una lectura válida)
+    if (temperatura != -999.0) {
+      if (temperatura > confTempMax || temperatura < confTempMin) {
+        activarAlarma();
+      } else if (temperatura > (confTempMax - confMargen) || temperatura < (confTempMin + confMargen)) {
+        alertaNaranja();    
+      } else {
+        desactivarAlarma();
+      }
     }
 
     String timestamp = obtenerFechaHora();

@@ -3,7 +3,10 @@
 Adafruit_MPU6050 mpu;
 
 void setupIMU() {
-  if (!mpu.begin()) {
+  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
+
+  // Intenta iniciar en 0x68 (AD0 a GND) o en 0x69 (AD0 a 3.3V para no chocar con el RTC)
+  if (!mpu.begin(0x68) && !mpu.begin(0x69)) {
     Serial.println("No se encontró el sensor MPU6050");
     return;
   }
