@@ -1,0 +1,20 @@
+{
+	"nodes":[
+		{"id":"esp32","type":"text","text":"## 🧠 ESP32-S3-DevKitC-1\n**Unidad Central de Procesamiento**\n\n- **Alimentación:** 5V / 3.3V (Vía USB-C UART)\n- **I2C Master:** GPIO 8 (SDA) / GPIO 9 (SCL)\n- **UART2 GPS:** GPIO 16 (RX2) / GPIO 17 (TX2)\n- **1-Wire:** GPIO 4 (DHT11)\n- **Salidas Digitales:** GPIO 5 (Buzzer), 6/7, 10/11, 12/13 (LEDs RGB)\n- **USB-C (UART):** Conexión Serial a PC","x":300,"y":40,"width":340,"height":360,"color":"6"},
+		{"id":"actuadores","type":"text","text":"### 🚨 Sistema de Alarmas con Enclavamiento\n**Actuadores y Señalización Visual/Sonora**\n\n- 🔊 **Buzzer Activo:** GPIO 5 (Continuo / 300 ms)\n- 💡 **LED RGB 1 (Temperatura):** R: GPIO 6 / G: GPIO 7\n- 💡 **LED RGB 2 (IMU / Impactos):** R: GPIO 10 / G: GPIO 11\n- 💡 **LED RGB 3 (Humedad):** R: GPIO 12 / G: GPIO 13\n- `GND` común con ESP32 (resistores de 220Ω-330Ω)","x":800,"y":-20,"width":340,"height":320,"color":"1"},
+		{"id":"dht","type":"text","text":"### 🌡️ Sensor DHT11\n**Temperatura y Humedad**\n- `VCC` ➔ 3.3V o 5V\n- `GND` ➔ GND\n- `DATA` ➔ GPIO 4","x":-40,"y":615,"width":280,"height":205,"color":"5"},
+		{"id":"gps","type":"text","text":"### 🛰️ Módulo GPS (GY-NEO6MV2)\n**Geolocalización satelital**\n- `VCC` ➔ 3.3V / 5V\n- `GND` ➔ GND\n- `TX` ➔ GPIO 16 (RX2)\n- `RX` ➔ GPIO 17 (TX2)\n- *Baudrate:* 9600 bps","x":-360,"y":400,"width":280,"height":270,"color":"5"},
+		{"id":"imu","type":"text","text":"### 📐 Sensor IMU (MPU-6050)\n**Acelerómetro y Giroscopio**\n- `VCC` ➔ 3.3V / `GND` ➔ GND\n- `SDA` ➔ GPIO 8\n- `SCL` ➔ GPIO 9\n- `AD0` ➔ GND (0x68) o 3.3V (0x69)","x":-360,"y":60,"width":280,"height":280,"color":"5"},
+		{"id":"rtc","type":"text","text":"### ⏰ Reloj RTC (DS3231)\n**Fecha y Hora en Tiempo Real**\n- `VCC` ➔ 3.3V / `GND` ➔ GND\n- `SDA` ➔ GPIO 8\n- `SCL` ➔ GPIO 9\n- *Dirección I2C:* 0x68","x":-240,"y":-240,"width":280,"height":220,"color":"5"},
+		{"id":"qt_app","type":"text","text":"### 💻 PC / Aplicación de Escritorio\n**Configurador de Transporte (Qt6 / C++17)**\n\n- **Puerto:** `/dev/ttyUSB0` (115200 bps)\n- **Envío (PC ➔ ESP):**\n  `<rot>,<acc>,<hum>,<tMin>,<tMax>,<margen>\\n`\n- **Recepción (ESP ➔ PC):**\n  Telemetría periódica de sensores y alarmas","x":590,"y":488,"width":360,"height":230,"color":"4"}
+	],
+	"edges":[
+		{"id":"e_imu_esp","fromNode":"imu","fromSide":"right","toNode":"esp32","toSide":"left","label":"Bus I2C (SDA:8, SCL:9)"},
+		{"id":"e_gps_esp","fromNode":"gps","fromSide":"right","toNode":"esp32","toSide":"left","label":"Serial2 (TX:17, RX:16)"},
+		{"id":"e_dht_esp","fromNode":"dht","fromSide":"right","toNode":"esp32","toSide":"left","label":"1-Wire (GPIO 4)"},
+		{"id":"e_rtc_esp","fromNode":"rtc","fromSide":"right","toNode":"esp32","toSide":"left","label":"Bus I2C (SDA:8, SCL:9)"},
+		{"id":"e_esp_act","fromNode":"esp32","fromSide":"right","toNode":"actuadores","toSide":"left","label":"GPIO 5, 6, 7, 10, 11, 12, 13"},
+		{"id":"e_esp_qt","fromNode":"esp32","fromSide":"bottom","toNode":"qt_app","toSide":"left","label":"USB UART (115200 8N1)"},
+		{"id":"0ee9eb9012a97c51","fromNode":"gps","fromSide":"bottom","toNode":"dht","toSide":"bottom"}
+	]
+}
