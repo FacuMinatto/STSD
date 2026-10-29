@@ -7,7 +7,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     configurarUI();
     aplicarEstilos();
     setWindowTitle("Configurador de Transporte");
-    setMinimumSize(380, 420);
+    setMinimumSize(380, 470);
 
     // Inicializar y configurar el puerto serie según lo visto en cátedra
     puertoSerie = new QSerialPort(this);
@@ -18,6 +18,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     puertoSerie->setStopBits(QSerialPort::OneStop);
     puertoSerie->setFlowControl(QSerialPort::NoFlowControl);
 
+    connect(puertoSerie, &QSerialPort::readyRead, this, &MainWindow::leerDatosSerie);
+
     if (puertoSerie->open(QIODevice::ReadWrite)) {
         qDebug() << "Puerto serie abierto correctamente.";
     } else {
@@ -26,6 +28,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 }
 
 MainWindow::~MainWindow() {
+    if (archivoCSV.isOpen()) {
+        archivoCSV.close();
+    }
     // Cerramos el puerto limpiamente al cerrar la ventana
     if (puertoSerie->isOpen()) {
         puertoSerie->close();
@@ -87,16 +92,21 @@ void MainWindow::configurarUI() {
     layoutTemperatura->addRow("Margen Riesgoso (±):", spinMargen);
     grupoTemperatura->setLayout(layoutTemperatura);
 
-    // Botón de acción
+    // Botones de acción
     btnEnviar = new QPushButton("Cargar Parámetros");
     btnEnviar->setMinimumHeight(38);
 
-    // Conectar señal con ranura (signals & slots)
-    QObject::connect(btnEnviar, &QPushButton::clicked, this, &MainWindow::enviarDatos);
+    btnDescargar = new QPushButton("Descargar Registro");
+    btnDescargar->setMinimumHeight(38);
+
+    // Conectar señales con ranuras (signals & slots)
+    connect(btnEnviar, &QPushButton::clicked, this, &MainWindow::enviarDatos);
+    connect(btnDescargar, &QPushButton::clicked, this, &MainWindow::pedirRegistro);
 
     layoutPrincipal->addWidget(grupoSensores);
     layoutPrincipal->addWidget(grupoTemperatura);
     layoutPrincipal->addWidget(btnEnviar);
+    layoutPrincipal->addWidget(btnDescargar);
 
     setCentralWidget(widgetCentral);
 }
@@ -147,5 +157,44 @@ void MainWindow::enviarDatos() {
         qDebug() << "Datos enviados correctamente:" << trama;
     } else {
         qDebug() << "Error: El puerto no está abierto.";
+    }
+}
+
+void MainWindow::pedirRegistro() {
+    if (puertoSerie->isOpen()) {
+        puertoSerie->write("DESCARGAR\n");
+        qDebug() << "Comando DESCARGAR enviado a la ESP32.";
+    } else {
+        QMessageBox::warning(this, "Puerto Desconectado", "No se puede descargar el registro porque el puerto serie no está conectado.");
+    }
+}
+
+void MainWindow::leerDatosSerie() {
+    bufferSerie.append(QString::fromUtf8(puertoSerie->readAll()));
+
+    while (bufferSerie.contains('\n')) {
+        int idx = bufferSerie.indexOf('\n');
+        QString linea = bufferSerie.left(idx).trimmed();
+        bufferSerie.remove(0, idx + 1);
+
+        if (linea == "---INICIO_REGISTRO---") {
+            archivoCSV.setFileName("registro_viaje.csv");
+            if (archivoCSV.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+                descargandoRegistro = true;
+                qDebug() << "Iniciando descarga de registro_viaje.csv...";
+            }
+        } else if (linea == "---FIN_REGISTRO---") {
+            if (archivoCSV.isOpen()) {
+                archivoCSV.close();
+            }
+            descargandoRegistro = false;
+            qDebug() << "Descarga de registro finalizada.";
+            QMessageBox::information(this, "Registro Descargado", "El historial de anomalías se descargó exitosamente en registro_viaje.csv");
+        } else if (descargandoRegistro && archivoCSV.isOpen()) {
+            if (!linea.isEmpty()) {
+                QTextStream out(&archivoCSV);
+                out << linea << "\n";
+            }
+        }
     }
 }

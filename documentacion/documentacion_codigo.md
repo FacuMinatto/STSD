@@ -1,4 +1,4 @@
-> **Última actualización:** 27/10/2026 - 22:58 hs
+> **Última actualización:** 29/10/2026 - 14:15 hs
 
 # Documentación Técnica del Proyecto STSD
 
@@ -14,10 +14,12 @@ Este documento explica en detalle el funcionamiento del código fuente del **Sis
     - [B. Inicialización (`setup()`)](#b-inicialización-setup)
     - [C. Bucle Principal (`loop()`) y Partes Clave](#c-bucle-principal-loop-y-partes-clave)
       - [1. Lectura constante del GPS](#1-lectura-constante-del-gps)
-      - [2. Recepción de configuración desde la PC (Qt)](#2-recepción-de-configuración-desde-la-pc-qt)
+      - [2. Recepción de configuración y comandos desde la PC (Qt)](#2-recepción-de-configuración-y-comandos-desde-la-pc-qt)
       - [3. Muestreo no bloqueante con `millis()`](#3-muestreo-no-bloqueante-con-millis)
       - [4. Lógica de Alarmas con Enclavamiento (3 Canales Independientes)](#4-lógica-de-alarmas-con-enclavamiento-3-canales-independientes)
       - [5. Control No Bloqueante del Buzzer (Continuo / Intermitente)](#5-control-no-bloqueante-del-buzzer-continuo--intermitente)
+      - [6. Punto de Acceso Wi-Fi y Servidor Web Embebido](#6-punto-de-acceso-wi-fi-y-servidor-web-embebido)
+      - [7. Datalogger Autónomo de Anomalías en Flash (LittleFS)](#7-datalogger-autónomo-de-anomalías-en-flash-littlefs)
   - [1.2 Módulos de Sensores (`.h` y `.cpp`)](#12-módulos-de-sensores-h-y-cpp)
     - [A. Sensor de Temperatura y Humedad (`dht11`)](#a-sensor-de-temperatura-y-humedad-dht11h-y-dht11cpp)
     - [B. Acelerómetro y Giroscopio (`imu`)](#b-acelerómetro-y-giroscopio-imuh-y-imucpp)
@@ -33,6 +35,7 @@ Este documento explica en detalle el funcionamiento del código fuente del **Sis
     - [C. Conexión de Señales y Ranuras (`Signals & Slots`)](#c-conexión-de-señales-y-ranuras-signals--slots)
     - [D. Armado y Envío de la Trama Serie (`enviarDatos()`)](#d-armado-y-envío-de-la-trama-serie-enviardatos)
     - [E. Paleta Oscura y Hoja de Estilos (`aplicarEstilos()`)](#e-paleta-oscura-y-hoja-de-estilos-aplicarestilos)
+    - [F. Descarga y Almacenamiento del Registro CSV (`pedirRegistro` y `leerDatosSerie`)](#f-descarga-y-almacenamiento-del-registro-csv-pedirregistro-y-leerdatosserie)
 - [PARTE 3: Esquema de Conexiones y Arquitectura del Sistema](#parte-3-esquema-de-conexiones-y-arquitectura-del-sistema)
   - [3.1 Lienzo Interactivo en Obsidian Canvas](#31-lienzo-interactivo-en-obsidian-canvas)
   - [3.2 Diagrama de Bloques y Conexiones](#32-diagrama-de-bloques-y-conexiones)
@@ -122,28 +125,36 @@ procesarGPS();
 ```
 Se llama al inicio de cada iteración del `loop()` sin bloqueos para vaciar el buffer serie del módulo GPS y alimentar el decodificador NMEA.
 
-#### 2. Recepción de configuración desde la PC (Qt)
+#### 2. Recepción de configuración y comandos desde la PC (Qt)
 ```cpp
 if (Serial.available() > 0) {
-  confRotacion = Serial.parseInt();
-  confAceleracion = Serial.parseInt();
-  confHumedad = Serial.parseInt();
-  confTempMin = Serial.parseFloat();
-  confTempMax = Serial.parseFloat();
-  confMargen = Serial.parseFloat();
-  
-  Serial.readStringUntil('\n'); 
-  
-  // Resetear variables de enclavamiento a VERDE con la nueva configuración
-  estadoTemp = VERDE;
-  estadoIMU = VERDE;
-  estadoHum = VERDE;
-  actualizarLedRGB(LED_TEMP_R, LED_TEMP_G, estadoTemp);
-  actualizarLedRGB(LED_IMU_R, LED_IMU_G, estadoIMU);
-  actualizarLedRGB(LED_HUM_R, LED_HUM_G, estadoHum);
+  String linea = Serial.readStringUntil('\n');
+  linea.trim();
+  if (linea == "DESCARGAR") {
+    enviarRegistroPorSerie();
+  } else if (linea.length() > 0) {
+    int rot = 0, acc = 0, hum = 0;
+    float tMin = 0.0, tMax = 0.0, marg = 0.0;
+    if (sscanf(linea.c_str(), "%d,%d,%d,%f,%f,%f", &rot, &acc, &hum, &tMin, &tMax, &marg) == 6) {
+      confRotacion = rot; confAceleracion = acc; confHumedad = hum;
+      confTempMin = tMin; confTempMax = tMax; confMargen = marg;
+
+      // Resetear variables de enclavamiento a VERDE con la nueva configuración
+      estadoTemp = VERDE; estadoIMU = VERDE; estadoHum = VERDE; ultimoImpacto = 0.0;
+      actualizarLedRGB(LED_TEMP_R, LED_TEMP_G, estadoTemp);
+      actualizarLedRGB(LED_IMU_R, LED_IMU_G, estadoIMU);
+      actualizarLedRGB(LED_HUM_R, LED_HUM_G, estadoHum);
+
+      // Limpiar el registro previo en flash para iniciar un nuevo viaje
+      if (LittleFS.exists("/registro.csv")) {
+        LittleFS.remove("/registro.csv");
+      }
+    }
+  }
 }
 ```
-* **Reinicio de enclavamiento:** Al cargar una nueva configuración para un nuevo despacho o viaje, las tres alarmas se restablecen a `VERDE` y se actualizan de inmediato en los LEDs.
+* **Protocolo de comandos por línea:** Se lee la línea completa con `readStringUntil('\n')` evitando bloqueos. Si el comando es `"DESCARGAR"`, transmite el archivo de auditoría. Si es una trama de parámetros numéricos, se parsea de forma segura mediante `sscanf(...) == 6` (función estándar de C enseñada en Informática II).
+* **Inicio limpio de viaje:** Al recibir parámetros desde Qt, no solo se resetean los estados de alarma y LEDs a `VERDE`, sino que se elimina `/registro.csv` de la memoria flash mediante `LittleFS.remove()`, garantizando que el nuevo viaje comience con un registro limpio sin mezclar eventos de envíos anteriores.
 
 #### 3. Muestreo no bloqueante con `millis()`
 ```cpp
@@ -186,6 +197,31 @@ if (estadoTemp == ROJO || estadoIMU == ROJO || estadoHum == ROJO) {
 }
 ```
 * **Prioridad:** Si cualquiera de las tres variables sufrió una violación crítica (`ROJO`), el buzzer suena de manera **continua**. Si no hay críticos pero sí advertencias (`AMARILLO`), emite un **pitido intermitente** (300 ms encendido / 300 ms apagado) calculado matemáticamente sin usar delays. Si todo está en `VERDE`, permanece **apagado**.
+
+#### 6. Punto de Acceso Wi-Fi y Servidor Web Embebido
+Para permitir que el transportista u operador audite el estado del envío directamente desde su smartphone sin requerir cables ni aplicaciones dedicadas, el ESP32-S3 levanta su propio punto de acceso (SoftAP) y un servidor web HTTP en el puerto 80 mediante las bibliotecas nativas de ESP32 `<WiFi.h>` y `<WebServer.h>`.
+
+- **Punto de Acceso (`setupWiFi()`):**
+  - **SSID:** `STSD_Monitoreo`
+  - **Contraseña:** `12345678`
+  - **IP por defecto:** `192.168.4.1`
+- **Servidor HTTP y Respuesta Web (`enviarPaginaWeb()`):**
+  - Responde en la ruta raíz `"/"` con una interfaz web responsiva (`meta viewport`) y estilo moderno oscuro.
+  - **Caché de Sensores en Memoria:** El servidor web utiliza variables globales (`ultimaTemp`, `ultimaHum`, `ultimoImpacto`) actualizadas periódicamente en el `loop()` principal cada 1 segundo. Esto evita que múltiples peticiones HTTP concurrentes bloqueen el bus I2C o el sensor DHT11 (el cual requiere hasta 250 ms por lectura física). Si un sensor reporta fallo (`-999.0`), la interfaz muestra `"Error sensor"`.
+  - **Auto-refresco nativo en HTML:** Incorpora `<meta http-equiv='refresh' content='2'>`, lo que permite que el navegador del teléfono actualice la telemetría y los estados de alarma de forma automática cada 2 segundos sin requerir JavaScript ni peticiones asíncronas pesadas.
+  - **Manejo en tiempo de ejecución:** `server.handleClient()` se ejecuta en cada iteración del bucle principal `loop()` de forma 100% no bloqueante.
+
+#### 7. Datalogger Autónomo de Anomalías en Flash (LittleFS)
+Durante el trayecto en el transporte (donde no hay una PC conectada por USB), el microcontrolador actúa de forma totalmente autónoma como una "caja negra" registradora de eventos en su memoria interna no volátil mediante las bibliotecas nativas `<FS.h>` y `<LittleFS.h>`:
+
+* **Inicialización Segura:** En `setup()`, se ejecuta `LittleFS.begin(true)`. El parámetro `true` formatea la partición automáticamente si es la primera vez que se inicia el microcontrolador o si la estructura de archivos aún no existe.
+* **Criterio de Grabación por Anomalía (Optimización de Flash):** En lugar de escribir periódicamente cada segundo (lo que saturaría y desgastaría la memoria flash prematuramente), la variable `bool anomaliaActual` solo se activa si en la muestra actual la temperatura, la humedad o el impacto entraron en zona de advertencia (`AMARILLO`) o infracción crítica (`ROJO`).
+* **Función `guardarAnomaliaCSV()`:** Abre `/registro.csv` en modo `FILE_APPEND` y almacena:
+  `FechaHora,Temperatura_C,Humedad_Porc,Impacto_ms2,Latitud,Longitud,Estado_Temp,Estado_Hum,Estado_IMU`
+  Si el módulo GPS aún busca satélites, registra `"Sin_GPS"` de forma instantánea sin demorar el ciclo.
+* **Transmisión de Auditoría (`enviarRegistroPorSerie()`):** Al recibir la solicitud `"DESCARGAR\n"` desde la PC, el microcontrolador transmite por el puerto serie el encabezado CSV y todas las filas almacenadas delimitadas estrictamente por los testigos:
+  - `---INICIO_REGISTRO---`
+  - `---FIN_REGISTRO---`
 
 ---
 
@@ -309,11 +345,13 @@ public:
 
 private slots:
     void enviarDatos();
+    void pedirRegistro();
+    void leerDatosSerie();
 
 private:
     void configurarUI();
     void aplicarEstilos();
-    // Punteros a widgets y QSerialPort...
+    // Punteros a widgets, buffer serie, estado de descarga y QFile...
 };
 ```
 * **Herencia:** `MainWindow` hereda de `QMainWindow`.
@@ -347,12 +385,17 @@ La interfaz se construye mediante código C++ organizando los controles en conte
 * **`QGroupBox` + `QFormLayout`:** Crea los dos recuadros agrupadores (*"Perfiles de Entorno"* y *"Rango Térmico"*) y organiza cada etiqueta a la izquierda con su control a la derecha mediante `addRow("Etiqueta:", widget)`.
 * **`QComboBox`:** Listas desplegables cargadas con `addItem(...)`.
 * **`QDoubleSpinBox`:** Selectores numéricos decimales configurados con rango (`setRange`) y valor inicial (`setValue`).
+* **`QPushButton`:** Botones de acción **"Cargar Parámetros"** (`btnEnviar`) y **"Descargar Registro"** (`btnDescargar`).
 
 ### C. Conexión de Señales y Ranuras (`Signals & Slots`)
 ```cpp
-QObject::connect(btnEnviar, &QPushButton::clicked, this, &MainWindow::enviarDatos);
+connect(btnEnviar, &QPushButton::clicked, this, &MainWindow::enviarDatos);
+connect(btnDescargar, &QPushButton::clicked, this, &MainWindow::pedirRegistro);
+connect(puertoSerie, &QSerialPort::readyRead, this, &MainWindow::leerDatosSerie);
 ```
-* Vincula la señal `clicked` del botón `btnEnviar` con el método `enviarDatos` del objeto actual (`this`). Cada vez que el usuario hace clic en **"Cargar Parámetros"**, Qt invoca automáticamente a `enviarDatos()`.
+* **Botón Enviar:** Al hacer clic, invoca `enviarDatos()` para transmitir los límites del nuevo viaje.
+* **Botón Descargar:** Invoca `pedirRegistro()`, enviando `"DESCARGAR\n"` al microcontrolador.
+* **Lectura Serie Asíncrona:** La señal `readyRead` del `QSerialPort` avisa automáticamente a Qt cuando hay bytes disponibles en el buffer del sistema operativo, ejecutando `leerDatosSerie()` sin bloquear la interfaz de usuario.
 
 ### D. Armado y Envío de la Trama Serie (`enviarDatos()`)
 ```cpp
@@ -377,13 +420,22 @@ if (puertoSerie->isOpen()) {
 ```
 1. Obtiene el índice seleccionado de cada desplegable (`0`, `1` o `2`) mediante `currentIndex()` y los valores numéricos de temperatura mediante `value()`.
 2. Convierte cada número a cadena con `QString::number(...)` y los concatena separados por comas, cerrando con `\n`.
-3. Convierte el `QString` a un arreglo de bytes UTF-8 (`trama.toUtf8()`) y lo transmite por el puerto serie hacia el Arduino usando `puertoSerie->write(...)`.
+3. Convierte el `QString` a un arreglo de bytes UTF-8 (`trama.toUtf8()`) y lo transmite por el puerto serie hacia el microcontrolador usando `puertoSerie->write(...)`.
 
 ### E. Paleta Oscura y Hoja de Estilos (`aplicarEstilos()`)
 1. **`QPalette` (`qApp->setPalette(...)`):** Define los colores base oscuros (`#121212` y `#E0E0E0`) a nivel de aplicación para que el gestor de ventanas de Linux pinte también la barra de título y los bordes en modo oscuro.
 2. **Hoja de estilos (`this->setStyleSheet(qss)`):** Aplica reglas de estilo tipo CSS a cada clase de widget:
    * Fondo negro/gris oscuro (`#121212` y `#1A1A1A`) con etiquetas transparentes (`QLabel { background-color: transparent; }`).
    * Bordes morados (`#7C3AED`) al interactuar con los controles gracias a los estados `:hover` (pasar el mouse por encima), `:focus` (control seleccionado) y `:pressed` (botón presionado).
+
+### F. Descarga y Almacenamiento del Registro CSV (`pedirRegistro` y `leerDatosSerie`)
+1. **Solicitud de Descarga (`pedirRegistro()`):**
+   Al presionar **"Descargar Registro"**, la aplicación comprueba si el puerto está abierto y envía `"DESCARGAR\n"`. Si el puerto no está disponible, emite una advertencia al usuario (`QMessageBox::warning`).
+2. **Recepción Asíncrona Bufferizada (`leerDatosSerie()`):**
+   Debido a que la comunicación UART fragmenta los datos en paquetes aleatorios según el tráfico del sistema, `bufferSerie.append(QString::fromUtf8(puertoSerie->readAll()))` concatena los bytes recibidos y un bucle `while (bufferSerie.contains('\n'))` extrae cada línea completa de texto:
+   * **`---INICIO_REGISTRO---`:** Abre `registro_viaje.csv` localmente en modo `QIODevice::WriteOnly | QIODevice::Truncate` y establece `descargandoRegistro = true`.
+   * **Líneas de datos CSV:** Se escriben secuencialmente en el archivo mediante `QTextStream`.
+   * **`---FIN_REGISTRO---`:** Cierra `archivoCSV`, restablece la bandera y despliega una ventana emergente informativa (`QMessageBox::information`) confirmando que la auditoría completa del viaje fue descargada con éxito.
 ---
 
 # PARTE 3: Esquema de Conexiones y Arquitectura del Sistema
@@ -414,7 +466,7 @@ graph TD
     end
 
     subgraph ESP ["Microcontrolador Central"]
-        ESP32["🧠 ESP32-S3-DevKitC-1<br/>(Dual Core / 240 MHz)<br/>Alimentación: 3.3V / 5V"]
+        ESP32["🧠 ESP32-S3-DevKitC-1<br/>(Dual Core / 240 MHz)<br/>Memoria Flash: LittleFS (/registro.csv)<br/>Alimentación: 3.3V / 5V"]
     end
 
     subgraph ACTUADORES ["Actuadores (Salida / Alarmas con Enclavamiento)"]
@@ -426,6 +478,10 @@ graph TD
 
     subgraph PC ["Estación de Monitoreo (PC)"]
         QT["💻 App de Escritorio Qt6 / C++17<br/>(ConfiguradorTransporte)<br/>Puerto: /dev/ttyUSB0 (115200 bps)"]
+    end
+
+    subgraph WEB ["Monitoreo Móvil (Wi-Fi)"]
+        PHONE["📱 Smartphone / Navegador Web<br/>SSID: STSD_Monitoreo (192.168.4.1)<br/>Auto-refresco cada 2 segundos"]
     end
 
     %% Conexiones Sensores -> ESP32
@@ -440,8 +496,9 @@ graph TD
     ESP32 -->|"GPIO 10 (R), GPIO 11 (G)"| LEDI
     ESP32 -->|"GPIO 12 (R), GPIO 13 (G)"| LEDH
 
-    %% Conexión Bidireccional USB con la PC
-    ESP32 <==|"Cable USB-C (Puerto UART)<br/>Trama: idRot,idAcc,idHum,tMin,tMax,margen"|==> QT
+    %% Conexión Bidireccional USB con la PC y Wi-Fi
+    ESP32 <==|"Cable USB-C (Puerto UART)<br/>Envío: Parámetros o 'DESCARGAR'<br/>Recepción: Telemetría o CSV viaje"|==> QT
+    ESP32 -.->|"Wi-Fi SoftAP (HTTP:80)"| PHONE
 ```
 
 ---
@@ -467,4 +524,5 @@ Todos los pines asignados en la **ESP32-S3-DevKitC-1** se encuentran en la **hil
 | **LED RGB 2 (IMU)** | Ánodos Rojo / Verde | **Pines `10` y `11`** | Salida PWM (`analogWrite`) | Pin 10=R, Pin 11=G (Verde: R=0, G=255 \| Amarillo: R=255, G=35 \| Rojo: R=255, G=0) |
 | **LED RGB 3 (Humedad)** | Ánodos Rojo / Verde | **Pines `12` y `13`** | Salida PWM (`analogWrite`) | Pin 12=R, Pin 13=G (Verde: R=0, G=255 \| Amarillo: R=255, G=35 \| Rojo: R=255, G=0) |
 | **PC (Qt6)** | USB-C UART | Puerto `UART` | Serial UART (115200 bps) | Detectado en Linux como `/dev/ttyUSB0` o `/dev/ttyACM0` |
+| **Smartphone** | Wi-Fi 802.11 b/g/n | Antena ESP32 | SoftAP HTTP (Puerto 80) | Red `STSD_Monitoreo` (clave: `12345678`), acceso web en `http://192.168.4.1` |
 

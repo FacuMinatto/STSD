@@ -10,6 +10,9 @@
 #include <QVBoxLayout>
 #include <QFormLayout>
 #include <QGroupBox>
+#include <QFile>
+#include <QTextStream>
+#include <QMessageBox>
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -20,6 +23,8 @@ public:
 
 private slots:
     void enviarDatos();
+    void pedirRegistro();
+    void leerDatosSerie();
 
 private:
     void configurarUI();
@@ -33,7 +38,11 @@ private:
     QDoubleSpinBox *spinMargen;
     
     QPushButton *btnEnviar;
+    QPushButton *btnDescargar;
     QSerialPort *puertoSerie;
+    QString bufferSerie;
+    bool descargandoRegistro = false;
+    QFile archivoCSV;
 };
 
 #endif
