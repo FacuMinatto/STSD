@@ -15,6 +15,8 @@
 #include <QMessageBox>
 #include <QInputDialog>
 #include <QLineEdit>
+#include <QDialogButtonBox>
+#include <QLabel>
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

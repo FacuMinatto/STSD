@@ -44,6 +44,11 @@ void MainWindow::configurarUI() {
     layoutPrincipal->setContentsMargins(16, 16, 16, 16);
     layoutPrincipal->setSpacing(14);
 
+    QLabel *lblTitulo = new QLabel("Configurador de Transporte", this);
+    lblTitulo->setAlignment(Qt::AlignCenter);
+    lblTitulo->setStyleSheet("font-size: 16px; font-weight: bold; color: #FFFFFF; padding: 4px 0px;");
+    layoutPrincipal->addWidget(lblTitulo);
+
     // Grupo de Sensores (IMU y Humedad)
     QGroupBox *grupoSensores = new QGroupBox("Perfiles de Entorno");
     QFormLayout *layoutSensores = new QFormLayout();
@@ -159,6 +164,17 @@ void MainWindow::desbloquearAdmin() {
     dialog.setTextEchoMode(QLineEdit::Password);
     dialog.setWindowFlags(dialog.windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
+    // Quitar iconos de los botones OK / Cancel
+    QDialogButtonBox *box = dialog.findChild<QDialogButtonBox *>();
+    if (box) {
+        if (QAbstractButton *btnOk = box->button(QDialogButtonBox::Ok)) {
+            btnOk->setIcon(QIcon());
+        }
+        if (QAbstractButton *btnCancel = box->button(QDialogButtonBox::Cancel)) {
+            btnCancel->setIcon(QIcon());
+        }
+    }
+
     if (dialog.exec() == QDialog::Accepted) {
         if (dialog.textValue() == "12345678") {
             comboRotacion->setEnabled(true);
@@ -172,6 +188,9 @@ void MainWindow::desbloquearAdmin() {
             btnAdmin->setEnabled(false);
         } else {
             QMessageBox msg(QMessageBox::NoIcon, "Acceso Denegado", "Contraseña incorrecta.", QMessageBox::Ok, this);
+            if (QAbstractButton *btnOk = msg.button(QMessageBox::Ok)) {
+                btnOk->setIcon(QIcon());
+            }
             msg.exec();
         }
     }
