@@ -1,4 +1,4 @@
-> **Última actualización:** 29/10/2026 - 14:15 hs
+> **Última actualización:** 29/10/2026 - 14:22 hs
 
 # Documentación Técnica del Proyecto STSD
 
@@ -428,11 +428,18 @@ if (puertoSerie->isOpen()) {
    * Fondo negro/gris oscuro (`#121212` y `#1A1A1A`) con etiquetas transparentes (`QLabel { background-color: transparent; }`).
    * Bordes morados (`#7C3AED`) al interactuar con los controles gracias a los estados `:hover` (pasar el mouse por encima), `:focus` (control seleccionado) y `:pressed` (botón presionado).
 
-### F. Descarga y Almacenamiento del Registro CSV (`pedirRegistro` y `leerDatosSerie`)
-1. **Solicitud de Descarga (`pedirRegistro()`):**
-   Al presionar **"Descargar Registro"**, la aplicación comprueba si el puerto está abierto y envía `"DESCARGAR\n"`. Si el puerto no está disponible, emite una advertencia al usuario (`QMessageBox::warning`).
-2. **Recepción Asíncrona Bufferizada (`leerDatosSerie()`):**
+### F. Modo Lectura (Read-Only) vs. Modo Administrador y Descarga CSV (`desbloquearAdmin`, `pedirRegistro` y `leerDatosSerie`)
+1. **Modo Lectura por Defecto y Sincronización de Parámetros (`OBTENER_CONFIG`):**
+   * Al abrir la aplicación, todos los controles de edición (`comboRotacion`, `comboAceleracion`, `comboHumedad`, `spinTempMin`, `spinTempMax`, `spinMargen`) y el botón **"Cargar Parámetros"** inician deshabilitados (`setEnabled(false)`).
+   * La aplicación envía automáticamente `"OBTENER_CONFIG\n"` al ESP32; este responde con `"CONFIG:rot,acc,hum,tMin,tMax,margen"`, permitiendo al receptor visualizar exactamente los parámetros con los que viajó la carga sin riesgo de modificarlos accidentalmente.
+2. **Desbloqueo de Administrador (`desbloquearAdmin()`):**
+   * Al presionar **"Modo Administrador (Desbloquear)"**, se abre un diálogo `QInputDialog::getText` con máscara de contraseña (`QLineEdit::Password`).
+   * Si la clave ingresada coincide con `"12345678"` (la misma del Wi-Fi), se habilitan (`setEnabled(true)`) todos los selectores y el botón **"Cargar Parámetros"**.
+3. **Solicitud de Descarga (`pedirRegistro()`):**
+   Al presionar **"Descargar Registro"** (disponible tanto en modo lectura como administrador), la aplicación comprueba si el puerto está abierto y envía `"OBTENER_CONFIG\n"` y `"DESCARGAR\n"`. Si el puerto no está disponible, emite una advertencia al usuario (`QMessageBox::warning`).
+4. **Recepción Asíncrona Bufferizada (`leerDatosSerie()`):**
    Debido a que la comunicación UART fragmenta los datos en paquetes aleatorios según el tráfico del sistema, `bufferSerie.append(QString::fromUtf8(puertoSerie->readAll()))` concatena los bytes recibidos y un bucle `while (bufferSerie.contains('\n'))` extrae cada línea completa de texto:
+   * **`CONFIG:...`:** Actualiza en pantalla los desplegables y selectores numéricos con la configuración activa del ESP32.
    * **`---INICIO_REGISTRO---`:** Abre `registro_viaje.csv` localmente en modo `QIODevice::WriteOnly | QIODevice::Truncate` y establece `descargandoRegistro = true`.
    * **Líneas de datos CSV:** Se escriben secuencialmente en el archivo mediante `QTextStream`.
    * **`---FIN_REGISTRO---`:** Cierra `archivoCSV`, restablece la bandera y despliega una ventana emergente informativa (`QMessageBox::information`) confirmando que la auditoría completa del viaje fue descargada con éxito.

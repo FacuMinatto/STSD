@@ -220,6 +220,13 @@ void loop() {
     linea.trim();
     if (linea == "DESCARGAR") {
       enviarRegistroPorSerie();
+    } else if (linea == "OBTENER_CONFIG") {
+      Serial.println("CONFIG:" + String(confRotacion) + "," +
+                     String(confAceleracion) + "," +
+                     String(confHumedad) + "," +
+                     String(confTempMin, 1) + "," +
+                     String(confTempMax, 1) + "," +
+                     String(confMargen, 1));
     } else if (linea.length() > 0) {
       int rot = 0, acc = 0, hum = 0;
       float tMin = 0.0, tMax = 0.0, marg = 0.0;

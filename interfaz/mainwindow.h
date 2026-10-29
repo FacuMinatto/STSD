@@ -13,6 +13,8 @@
 #include <QFile>
 #include <QTextStream>
 #include <QMessageBox>
+#include <QInputDialog>
+#include <QLineEdit>
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -24,6 +26,7 @@ public:
 private slots:
     void enviarDatos();
     void pedirRegistro();
+    void desbloquearAdmin();
     void leerDatosSerie();
 
 private:
@@ -37,6 +40,7 @@ private:
     QDoubleSpinBox *spinTempMax;
     QDoubleSpinBox *spinMargen;
     
+    QPushButton *btnAdmin;
     QPushButton *btnEnviar;
     QPushButton *btnDescargar;
     QSerialPort *puertoSerie;

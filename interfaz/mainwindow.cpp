@@ -6,8 +6,8 @@
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     configurarUI();
     aplicarEstilos();
-    setWindowTitle("Configurador de Transporte");
-    setMinimumSize(380, 470);
+    setWindowTitle("Configurador de Transporte (Modo Lectura)");
+    setMinimumSize(380, 520);
 
     // Inicializar y configurar el puerto serie según lo visto en cátedra
     puertoSerie = new QSerialPort(this);
@@ -22,6 +22,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     if (puertoSerie->open(QIODevice::ReadWrite)) {
         qDebug() << "Puerto serie abierto correctamente.";
+        puertoSerie->write("OBTENER_CONFIG\n");
     } else {
         qDebug() << "Error: No se pudo abrir el puerto serie al iniciar.";
     }
@@ -93,16 +94,30 @@ void MainWindow::configurarUI() {
     grupoTemperatura->setLayout(layoutTemperatura);
 
     // Botones de acción
+    btnAdmin = new QPushButton("Modo Administrador (Desbloquear)");
+    btnAdmin->setMinimumHeight(38);
+
     btnEnviar = new QPushButton("Cargar Parámetros");
     btnEnviar->setMinimumHeight(38);
 
     btnDescargar = new QPushButton("Descargar Registro");
     btnDescargar->setMinimumHeight(38);
 
+    // Estado inicial Read-Only (Operador / Receptor)
+    comboRotacion->setEnabled(false);
+    comboAceleracion->setEnabled(false);
+    comboHumedad->setEnabled(false);
+    spinTempMin->setEnabled(false);
+    spinTempMax->setEnabled(false);
+    spinMargen->setEnabled(false);
+    btnEnviar->setEnabled(false);
+
     // Conectar señales con ranuras (signals & slots)
+    connect(btnAdmin, &QPushButton::clicked, this, &MainWindow::desbloquearAdmin);
     connect(btnEnviar, &QPushButton::clicked, this, &MainWindow::enviarDatos);
     connect(btnDescargar, &QPushButton::clicked, this, &MainWindow::pedirRegistro);
 
+    layoutPrincipal->addWidget(btnAdmin);
     layoutPrincipal->addWidget(grupoSensores);
     layoutPrincipal->addWidget(grupoTemperatura);
     layoutPrincipal->addWidget(btnEnviar);
@@ -127,12 +142,37 @@ void MainWindow::aplicarEstilos() {
         "QLabel { background-color: transparent; }"
         "QGroupBox { background-color: #1A1A1A; border: 1px solid #2E2E2E; border-radius: 6px; margin-top: 8px; font-weight: bold; color: #A78BFA; }"
         "QComboBox, QDoubleSpinBox { background-color: #242424; color: #F0F0F0; border: 1px solid #3A3A3A; border-radius: 4px; padding: 5px; }"
+        "QComboBox:disabled, QDoubleSpinBox:disabled { background-color: #1A1A1A; color: #9E9E9E; border: 1px solid #2A2A2A; }"
         "QComboBox:focus, QDoubleSpinBox:focus, QComboBox:hover, QDoubleSpinBox:hover { border: 1px solid #7C3AED; }"
         "QPushButton { background-color: #1F1F1F; color: #FFFFFF; border: 1px solid #7C3AED; border-radius: 5px; padding: 8px; font-weight: bold; }"
+        "QPushButton:disabled { background-color: #181818; color: #555555; border: 1px solid #2E2E2E; }"
         "QPushButton:hover { background-color: #7C3AED; }"
         "QPushButton:pressed { background-color: #5B21B6; }";
 
     this->setStyleSheet(qss);
+}
+
+void MainWindow::desbloquearAdmin() {
+    bool ok = false;
+    QString clave = QInputDialog::getText(this, "Acceso Administrador",
+                                          "Ingrese la contraseña de administrador:",
+                                          QLineEdit::Password, "", &ok);
+    if (ok) {
+        if (clave == "12345678") {
+            comboRotacion->setEnabled(true);
+            comboAceleracion->setEnabled(true);
+            comboHumedad->setEnabled(true);
+            spinTempMin->setEnabled(true);
+            spinTempMax->setEnabled(true);
+            spinMargen->setEnabled(true);
+            btnEnviar->setEnabled(true);
+            btnAdmin->setText("Modo Administrador (Activo)");
+            btnAdmin->setEnabled(false);
+            setWindowTitle("Configurador de Transporte (Administrador)");
+        } else {
+            QMessageBox::warning(this, "Acceso Denegado", "Contraseña incorrecta.");
+        }
+    }
 }
 
 void MainWindow::enviarDatos() {
@@ -162,6 +202,7 @@ void MainWindow::enviarDatos() {
 
 void MainWindow::pedirRegistro() {
     if (puertoSerie->isOpen()) {
+        puertoSerie->write("OBTENER_CONFIG\n");
         puertoSerie->write("DESCARGAR\n");
         qDebug() << "Comando DESCARGAR enviado a la ESP32.";
     } else {
@@ -177,7 +218,17 @@ void MainWindow::leerDatosSerie() {
         QString linea = bufferSerie.left(idx).trimmed();
         bufferSerie.remove(0, idx + 1);
 
-        if (linea == "---INICIO_REGISTRO---") {
+        if (linea.startsWith("CONFIG:")) {
+            QStringList partes = linea.mid(7).split(',');
+            if (partes.size() == 6) {
+                comboRotacion->setCurrentIndex(partes[0].toInt());
+                comboAceleracion->setCurrentIndex(partes[1].toInt());
+                comboHumedad->setCurrentIndex(partes[2].toInt());
+                spinTempMin->setValue(partes[3].toDouble());
+                spinTempMax->setValue(partes[4].toDouble());
+                spinMargen->setValue(partes[5].toDouble());
+            }
+        } else if (linea == "---INICIO_REGISTRO---") {
             archivoCSV.setFileName("registro_viaje.csv");
             if (archivoCSV.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
                 descargandoRegistro = true;
