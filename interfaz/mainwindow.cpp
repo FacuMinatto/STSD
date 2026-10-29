@@ -6,7 +6,7 @@
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     configurarUI();
     aplicarEstilos();
-    setWindowTitle("Configurador de Transporte (Modo Lectura)");
+    setWindowTitle("Configurador de Transporte");
     setMinimumSize(380, 520);
 
     // Inicializar y configurar el puerto serie según lo visto en cátedra
@@ -153,12 +153,14 @@ void MainWindow::aplicarEstilos() {
 }
 
 void MainWindow::desbloquearAdmin() {
-    bool ok = false;
-    QString clave = QInputDialog::getText(this, "Acceso Administrador",
-                                          "Ingrese la contraseña de administrador:",
-                                          QLineEdit::Password, "", &ok);
-    if (ok) {
-        if (clave == "12345678") {
+    QInputDialog dialog(this);
+    dialog.setWindowTitle("Acceso Administrador");
+    dialog.setLabelText("Ingrese la contraseña de administrador:");
+    dialog.setTextEchoMode(QLineEdit::Password);
+    dialog.setWindowFlags(dialog.windowFlags() & ~Qt::WindowContextHelpButtonHint);
+
+    if (dialog.exec() == QDialog::Accepted) {
+        if (dialog.textValue() == "12345678") {
             comboRotacion->setEnabled(true);
             comboAceleracion->setEnabled(true);
             comboHumedad->setEnabled(true);
@@ -168,9 +170,9 @@ void MainWindow::desbloquearAdmin() {
             btnEnviar->setEnabled(true);
             btnAdmin->setText("Modo Administrador (Activo)");
             btnAdmin->setEnabled(false);
-            setWindowTitle("Configurador de Transporte (Administrador)");
         } else {
-            QMessageBox::warning(this, "Acceso Denegado", "Contraseña incorrecta.");
+            QMessageBox msg(QMessageBox::NoIcon, "Acceso Denegado", "Contraseña incorrecta.", QMessageBox::Ok, this);
+            msg.exec();
         }
     }
 }
